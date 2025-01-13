@@ -5,7 +5,6 @@
 #include <Adafruit_ILI9341.h> // Hardware-specific library
 #include <SD.h>
 #include <Adafruit_STMPE610.h>
-#include "Adafruit_MCP9808.h"
 
 #define STMPE_CS 16
 #define TFT_CS   0
@@ -25,7 +24,6 @@ char lf=10;
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 Adafruit_STMPE610 ts = Adafruit_STMPE610(STMPE_CS);
-Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 
 class comm {
   public:
@@ -86,44 +84,6 @@ class comm {
       };
     };
   };
-  
-  bool report(float sendTemp) {
-    WiFiClient client;
-    const int httpPort = 80;
-    int failCount = 0;
-    if (!client.connect(host, httpPort)) {
-          failCount++;
-      Serial.println(failCount);
-      delay(1000);
-      if (failCount == 5) {
-        connect();
-        failCount = 0;
-        return 1;
-      }
-      return 0;
-    }
-
-    String url = "/thermostat_api.php?inSub=true&id=2&temp=";
-    url = url + sendTemp;
-    url = url + "&humidity=";
-    Serial.println("Reporting...");
-    Serial.print("Requesting URL: ");
-    Serial.println(url);
-    
-    // This will send the request to the server
-    client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                 "Host: " + host + "\r\n" + 
-                 "Connection: close\r\n\r\n");
-                 
-    delay(1000);
-
-    while(client.available()){
-      failCount = 0;
-      String line = client.readStringUntil('\r');
-      Serial.println(line);
-      Serial.println();
-    };
-  }
   
   bool fetchRadar() {
     int loaded = 0;
@@ -211,7 +171,7 @@ class comm {
     WiFiClient client;
     const int httpPort = 80;
     int loaded = 0;
-    Serial.println("Fetching tine_dash_2.php...");
+    Serial.println("Fetching tiny_dash_2.php...");
     if (!client.connect(host, httpPort)) {
       Serial.println("no connect!");
       delay(1000);
@@ -259,7 +219,6 @@ class gui {
   unsigned int fetchCurrentMillis = millis();
   unsigned int fetchWeatherMillis = millis();
   unsigned int fetchCastMillis = millis();
-  float myTemp;
   bool init = 1;
   
   comm CCC = comm();
@@ -413,9 +372,6 @@ class gui {
   void drawCurrent() {
     if (fetchCurrentMillis + 60000 < millis() || init == 1) {
       CCC.fetchCurrent();
-      myTemp = tempsensor.readTempC();
-      myTemp = myTemp * 1.8 + 32;
-      CCC.report(myTemp);
       tft.fillRect(170,76,320,240,ILI9341_BLACK);
       tft.setTextSize(2);
       tft.setTextColor(ILI9341_YELLOW);
@@ -429,8 +385,6 @@ class gui {
       tft.print("Office:");
       tft.setCursor(170,156);
       tft.setTextColor(ILI9341_CYAN);
-      tft.print(myTemp);
-      tft.print("F");
       tft.setCursor(170,196);
       tft.setTextColor(ILI9341_YELLOW);
       tft.print("Outside:");
@@ -469,7 +423,7 @@ void setup(void) {
   Serial.println("Touchscreen started");
   
   tft.begin();
-  tft.setRotation(3);
+  tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
   
   yield();
@@ -479,13 +433,6 @@ void setup(void) {
     Serial.println("failed!");
   }
   Serial.println("OK!");
-  
-  if (!tempsensor.begin()) {
-    Serial.println("Couldn't find MCP9808!");
-    while(1) {
-      
-    };
-  };
   
   IO.begin();
   IO.drawMap();
